@@ -4,7 +4,7 @@ LABEL maintainer="pgancarski@cener.com"
 LABEL maintainer="ezubillaga@cener.com"
 
 
-ENV OA_VERSION 7.x-2.613
+ENV OA_VERSION 7.x-2.628
 
 RUN apt-get update && apt-get install -y php5-mysql libpng-dev
 RUN docker-php-ext-install pdo pdo_mysql
