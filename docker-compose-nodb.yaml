@@ -1,0 +1,28 @@
+version: '3.5'
+services:
+   windbench-febe:
+      container_name: windbench-febe
+      build: febe
+      image: cener-epr/windbench:1.0
+      restart: always
+      environment:
+         SERVICE_80_TAGS: external_windbench.net
+         SERVICE_80_NAME: windbench
+         DB: ortzbd
+         backup_type: app
+         backup: "yes"
+      volumes:
+         - config:/etc/apache2
+         - data:/var/www/html/
+      networks:
+         - outside
+      extra_hosts:
+         - ""      
+networks:
+   outside:
+      external:
+         name: servicediscovery_default
+
+volumes:
+  config:
+  data:

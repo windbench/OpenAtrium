@@ -1,0 +1,9 @@
+; windbench_workoflow.info v0.1 06/2011 @investic.net 
+name = Base
+description = Base de windbench
+core = 7.x
+package = Windbench
+version = 7.x-0.1
+
+
+

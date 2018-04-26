@@ -1,0 +1,318 @@
+<?php
+/*
+ * Hook for form_alter defining all the forms
+ * in the windbench,
+ *
+ * Hooks for reviewing, validating and submiting the forms are in the windbench module
+ *
+ */
+
+/**
+ * Implements hook_form_alter
+ *
+ */
+
+function windbench_forms_form_alter(&$form,&$form_state,$form_id){
+    windbench_debug("forms 17 $form_id");
+    
+    switch ($form_id) {
+	case 'eq_design_codes_node_form':
+	    $formobj = new WindbenchForm($form, $form_state, $form_id);
+            _windbench_forms_eq_design_codes_node_form($formobj);
+            $form = $formobj->form;
+            break;
+	case 'eq_microscale_node_form':
+	    $formobj = new WindbenchForm($form, $form_state, $form_id);
+            _windbench_forms_eq_design_codes_node_form($formobj);
+            $form = $formobj->form;
+            break;
+	case 'oa_space_node_form':
+	    $formobj = new WindbenchForm($form, $form_state, $form_id);
+            _windbench_forms_oa_space_node_form($formobj);
+            $form = $formobj->form;
+            break;
+    }
+     
+    
+    
+}
+
+function _windbench_forms_oa_space_node_form(&$form){
+    global $user;
+}
+
+function _windbench_forms_eq_microscale_node_form(&$form){
+    global $user;
+    //$form->print_form();
+    //field_eq_benchmark_ref
+    
+    /*foreach(array_keys($form->form['og_group_ref']) as $key){
+	windbench_debug_print($key);
+    }*/
+    
+    $group_title = _toAscii($form->form['og_group_ref']['und'][0]['default']['#default_value']);
+    $form->setDefault('title',"EQ :".$group_title." :".$user->name);
+ 
+    $new_options = Array();
+    $new_options['_none'] = '- None -';
+    foreach($form->form['field_eq_benchmark_ref']['und'][0]['default']['#options'] as $key => $value) {
+	$is_ben = windbench_space_is_benchmark($key);
+	//windbench_debug($key .'  ' . $value . '  ' . $is_ben);
+	if ($is_ben){
+	    $new_options[$key] = $value;
+	}
+    }
+    //windbench_debug_print($new_options);
+    $form->form['field_eq_benchmark_ref']['und'][0]['default']['#options'] = $new_options;
+    
+    if(windbench_user_is_admin()) return;
+    $form->hide('oa_notifications');
+    $form->form['#groups']['group_oa_access']->format_settings['instance_settings']['classes'] = 'hidden';
+
+    //$form->form['#groups']['group_oa_access']->type = 'hidden';
+    //windbench_debug_print($form->form['#groups']['group_oa_access']);
+}
+
+function _windbench_forms_eq_design_codes_node_form(&$form){
+    global $user;
+    //$form->print_form();
+    //field_eq_benchmark_ref
+    
+    /*foreach(array_keys($form->form['og_group_ref']) as $key){
+	windbench_debug_print($key);
+    }*/
+    
+    $group_title = _toAscii($form->form['og_group_ref']['und'][0]['default']['#default_value']);
+    $form->setDefault('title',"EQ :".$group_title." :".$user->name);
+ 
+    $new_options = Array();
+    $new_options['_none'] = '- None -';
+    foreach($form->form['field_eq_benchmark_ref']['und'][0]['default']['#options'] as $key => $value) {
+	$is_ben = windbench_space_is_benchmark($key);
+	//windbench_debug($key .'  ' . $value . '  ' . $is_ben);
+	if ($is_ben){
+	    $new_options[$key] = $value;
+	}
+    }
+    //windbench_debug_print($new_options);
+    $form->form['field_eq_benchmark_ref']['und'][0]['default']['#options'] = $new_options;
+    
+    if(windbench_user_is_admin()) return;
+    $form->hide('oa_notifications');
+    $form->form['#groups']['group_oa_access']->format_settings['instance_settings']['classes'] = 'hidden';
+
+    //$form->form['#groups']['group_oa_access']->type = 'hidden';
+    //windbench_debug_print($form->form['#groups']['group_oa_access']);
+}
+    
+
+
+
+
+
+
+
+
+
+
+
+
+class WindbenchForm {
+    // property declaration
+    public $form;
+    public $state;
+    public $id;
+    public $node;
+
+    // method declaration
+    function __construct($form, $form_state, $form_id) {
+        $this->form = $form;
+        $this->state = $form_state;
+        $this->id = $form_id;
+        if(array_key_exists('node',$form_state))
+			$this->node = $form_state['node'];
+        windbench_debug($form_id);
+    }
+
+    //probably return true when BM/TC are new
+    public function isNew(){
+        if( !isset( $this->node->nid ))
+            return true;
+        return false;
+    }
+    public function getStep(){
+        if ($this->isNew())
+            return WINDBENCH_WORKFLOW_STEP_0;
+		$step = $this->node->field_workflow_status['und'][0]['tid'];
+		if (intval($step)<WINDBENCH_WORKFLOW_STEP_1)
+			return WINDBENCH_WORKFLOW_STEP_0;
+		else
+			return $step;
+    }
+
+    public function remove($key, $bool = true){
+        //$pointer = $this->getElement($key);
+        //windbench_debug($key);
+        $this->form[$key]['#access'] = !($bool);
+        $this->required($key, $bool = false);
+    }
+
+    public function removeArray($array){
+        foreach($array as $key){
+            $this->remove($key);
+        }
+    }
+
+    public function removeAllBut($array = array()){
+        //windbench_debug('removing all but ');
+        $children = element_children($this->form);
+        //windbench_debug(print_r($children, TRUE));
+        foreach($children as $key){
+            if(!in_array($key, $array))
+                $this->remove($key);
+        }
+    }
+
+    public function disable($key, $bool = true){
+        $this->form[$key]['#disabled'] = $bool;
+    }
+    public function hide($key){
+        $this->form[$key]['#type'] = 'hidden';
+    }
+    public function required($key, $bool = true){
+        switch ($key) {
+            case 'field_tandc_accepted':
+                $this->form['field_tandc_accepted']['und']['#required'] = $bool;
+                break;
+            default:
+                $this->form[$key]['#required'] = $bool;
+        }
+    }
+    
+    public function setDefault($key, $value){
+        switch ($key) {
+			case 'group_audience':
+                $this->form['group_audience']['und']['#default_value'] = array($value);
+                break;	
+            case 'field_files_path':
+                $this->form['field_files_path']['und'][0]['value']['#default_value']  = $value;
+                break;			
+            case 'group_access':
+                $this->form['group_access']['#default_value'] = $value;
+                break;
+            case 'options_status':
+                $this->form['options']['status']['#default_value'] = $value;
+                break;
+            case 'field_workflow_reviewers':
+                $this->form['field_workflow_reviewers']['und']['#default_value'] = $value;
+                //$this->form['field_workflow_reviewers']['und']['#value'] = $value;
+                break;
+            case 'field_model_user':
+                $this->form['field_model_user']['und']['#default_value'] = $value;
+                break;
+            case 'field_terms_conditions':
+                $this->form['field_terms_conditions']['und'][0]['value']['#default_value'] = $value;
+                break;
+            case 'field_mng_accepted':
+                $this->form['field_mng_accepted']['und']['#default_value'] = $value;
+                break;
+            case 'field_group':
+                $this->form['field_group']['und'][0]['nid']['#default_value'] = $value;
+                break;
+            case 'field_user':
+                $this->form['field_user']['und']['#default_value'] = $value;
+                break;
+            default:
+                $this->form[$key]['#default_value'] = $value;
+
+        }
+//        $pointer['#value'] = $value;
+        //windbench_debug(print_r($this->form['field_workflow_reviewers']['und'], TRUE));
+
+    }
+    public function getDefault($key){
+        switch ($key) {
+			case 'field_files_path':
+                return $this->form['field_files_path']['und'][0]['value']['#default_value'];
+            case 'group_access':
+                return $this->form['group_access']['#default_value'];
+            case 'options_status':
+                return $this->form['options']['status']['#default_value'];
+           case 'field_workflow_reviewers':
+                return $this->form['field_workflow_reviewers']['und']['#default_value'];
+            default:
+                return $this->form[$key]['#default_value'];
+
+        }
+//        $pointer['#value'] = $value;
+        //windbench_debug(print_r($this->form['field_workflow_reviewers']['und'], TRUE));
+
+    }
+//    public function print_visible(){
+//        foreach ($this->form as $element){
+//            if($element['#access'] == FALSE)
+//                windbench_debug_print($element);
+//        }
+//
+//
+//    }
+    public function setFilePath(){
+		// case file path is set up - one of the files was uploaded already, or editing existing EQ 
+		if(isset($this->state['complete form']['field_files_path']['und'][0]['value']['#default_value'])){
+			$file_path = $this->state['complete form']['field_files_path']['und'][0]['value']['#default_value'];
+			windbench_debug("windbench_forms.setFilePath case 0");
+			//for some reason I have to refresh the data
+			$this->setDefault ('field_files_path',$file_path);
+			return $file_path;
+		}
+		
+
+		global $user;
+		$ngid=windbench_forms_eq_get_gnid($this);
+
+		// case something is wrong, abort
+		if($ngid == null && ($this->getStep() == WINDBENCH_WORKFLOW_STEP_0)){
+			windbench_debug("windbench_forms.setFilePath case 2");
+			return null;
+		}
+		
+		$file_path = 'private://eq_data/'.$ngid.'/'.$user->name.'/'.uniqid();
+		$this->setDefault ('field_files_path',$file_path);
+		windbench_debug("windbench_forms.setFilePath end");
+		return $file_path;
+	}	
+
+    public function print_form(){
+        windbench_debug_print($this->form);
+    }
+    public function print_state(){
+        windbench_debug_print($this->state);
+    }
+    public function setFileInfo($group_name,$file_path){
+		$profiles = windbench_file_read_profiles_list($group_name);
+		if($profiles != null){
+			$output = windbench_file_info($profiles, $file_path);
+			//windbench_debug($info);
+			$this->form['field_quest_files']['und']['#file_upload_description'] = $output[0];
+			$delta = $this->form['field_quest_files']['und']['#file_upload_delta'];
+			$this->form['field_quest_files']['und'][$delta]['#upload_validators']['windbench_file_val'] = Array($profiles,$output[1]);
+		
+			//We kidnap the file object creation so we can replace files on upload 
+			//$this->form['field_quest_files']['und'][$delta]['#value_callback'] = 'windbench_file_overwrite_widget';
+		}
+	}
+}
+
+function _toAscii($str, $replace=array(), $delimiter='-') {
+ if( !empty($replace) ) {
+  $str = str_replace((array)$replace, ' ', $str);
+ }
+
+ $clean = iconv('UTF-8', 'ASCII//TRANSLIT', $str);
+ $clean = preg_replace("/[^a-zA-Z0-9\/_|+ -]/", '', $clean);
+ $clean = strtolower(trim($clean, '-'));
+ $clean = preg_replace("/[\/_|+ -]+/", $delimiter, $clean);
+
+ return $clean;
+}
+

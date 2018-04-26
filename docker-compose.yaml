@@ -1,0 +1,44 @@
+version: '3'
+services:
+   windbench-febe:
+      container_name: windbench-febe
+      build: ./febe/
+      image: cener/windbench-febe:1.0
+      environment:
+         SERVICE_80_TAGS: external
+         SERVICE_80_NAME: windbench
+         DB: windbench-db
+         backup_type: app
+         backup: "yes"
+      links:
+         - windbench-db
+      ports:
+         - "80"
+      networks:
+         - outside
+      depends_on:
+         - windbench-db
+      volumes:
+         - "files:/var/www/html/sites/default/files"
+   windbench-db:
+      container_name: windbench-db
+      build: ./db/
+      image: cener/windbench-db:1.0
+      labels:
+         backup: "yes"
+         backup_type: "db"
+         db_name: "OADrupal7"
+         db_type: "mysql"
+      networks:
+         - outside
+      volumes:
+         - "mysql:/var/lib/mysql"
+         - "./db/db_dump:/docker-entrypoint-initdb.d"
+networks:
+   outside:
+      external:
+         name: servicediscovery_default
+volumes:
+   mysql:
+   files:
+

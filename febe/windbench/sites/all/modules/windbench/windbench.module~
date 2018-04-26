@@ -1,0 +1,376 @@
+
+
+<?php
+
+define('WINDBENCH_OFFLINE_PATH','/var/www/html/sites/default/files/private/offline/');
+define('WINDBENCH_SCRIPTS_PATH','scripts/windbench/');
+define('DEBUG',FALSE);
+
+function windbench_block_info() {
+  windbench_debug("windbench_block_info");
+  $blocks = array();
+  $blocks['windbench_plot'] = array(
+    'info' => t('A fancy plot'),
+  );
+  $blocks['windbench_results'] = array(
+    'info' => t('A fancy table'),
+  ); 
+  return $blocks;
+}
+function windbench_block_view($delta='') {
+  windbench_debug("windbench_block_view");
+  $block = array();
+  
+  switch($delta) {
+    case 'windbench_plot' :
+      $block['content'] = array(
+        'image' => array(
+          '#prefix' => '',
+          '#type' => 'markup',
+          '#markup' => _highcharts_plot_page(),
+        ),
+      );
+      break;
+    case 'windbench_results' :
+      $block['content'] = array(
+        'image' => array(
+          '#prefix' => '',
+          '#type' => 'markup',
+          '#markup' => _highcharts_results_page(),
+        ),
+      );
+      break;
+  }
+  
+  return $block;
+}
+
+function windbench_file_load_rating($ben_title){
+	//windbench_debug("windbench_file_load_rating");
+	
+	$file_name = WINDBENCH_OFFLINE_PATH."{$ben_title}_rating.json";
+	$in_json = null;
+	if(is_readable($file_name)){
+		$string = file_get_contents($file_name);
+		$in_json = json_decode($string, true);
+	}
+	if($in_json == null){
+		//windbench_debug("ERROR: file {$file_name} not found, or incorrect json");
+		return null;
+	}
+		
+	//count profiles and users
+	$profiles = Array();
+	$users = Array();
+	foreach($in_json as $profile){
+		//ignore empty profiles
+		if(count($profile)>0 and count($profile[1])>0){
+			$no_data = True;
+			foreach($profile[1] as $user){
+				//ignore if no data
+				if(count($user) > 0 and $user[1] != -999){
+					array_push($users, $user[0]);
+					$no_data = False;
+				}
+			}
+			if(!$no_data) array_push($profiles, $profile[0]);
+		}
+	}
+	
+	
+	$users = array_unique($users);
+	$users_f = array_flip($users);
+	//windbench_debug_print($profiles,0);
+	//windbench_debug_print(_array_column($profiles,0));
+	
+	$profiles_f = array_flip(_array_column($profiles,0));
+	
+	//initialise ratings array
+	$ratings = Array();
+	foreach($profiles as $profile){
+		$temp = Array();
+		foreach($users as $user){
+			array_push($temp,-999);
+		}
+		array_push($ratings,$temp);
+	}	
+	
+	//loop through the input file and file the ratings array
+	foreach($in_json as $profile){
+		//ignore empty profiles
+		if(count($profile)>0 and count($profile[1])>0){
+			foreach($profile[1] as $user){
+				if(count($user) > 0 and $user[1] != -999){
+					$user_name = array_shift($user);
+					$ratings[ $profiles_f[ $profile[0][0] ] ][ $users_f[$user_name] ] = $user;
+				}
+			}
+		}
+	}	
+	
+	
+	
+	//windbench_debug_print($profiles);
+	//windbench_debug_print($users);	
+	//windbench_debug_print($ratings);	
+	
+	return Array($users,$profiles,$ratings);
+}
+
+
+function windbench_file_read_profiles_list($ben_name){
+	$prefix = WINDBENCH_OFFLINE_PATH.$ben_name;
+	if(! is_readable($prefix.'.ini')){
+		//windbench_debug('windbench_file_read_profiles_list ini not found for '.$prefix.'.ini');
+		return null;
+	}
+	$command = 'ls '.WINDBENCH_OFFLINE_PATH.$ben_name.'*.json';
+	exec($command, $files);	
+	//drupal_set_message($command);
+	//drupal_set_message($files);
+	
+	$start = strlen($prefix) + 1;
+	$output = Array();
+	foreach($files as $file){
+		//windbench_debug('windbench_file_read_profiles_list file processed '.$file);
+		$length = strlen($file) - $start - 5; // 5 stands for the ".json" tail
+		$profile = substr($file,$start,$length);
+
+		if($profile != 'default' && $profile != 'rating'){
+			array_push($output, $profile);
+		}
+	}
+	//windbench_debug_print($output);
+	return $output;
+}
+
+
+
+function _highcharts_results_page(){
+	
+	$title = 'Askervein_Neutral';
+
+	drupal_add_js(WINDBENCH_SCRIPTS_PATH.'highcharts.js', 'file');
+	drupal_add_js(WINDBENCH_SCRIPTS_PATH.'highcharts-more.js', 'file');
+	drupal_add_js(WINDBENCH_SCRIPTS_PATH.'modules/exporting.js', 'file');
+	//drupal_add_js('scripts/modules/drilldown.js', 'file');
+	drupal_add_js(WINDBENCH_SCRIPTS_PATH.'plot_results.js', 'file');
+	drupal_add_js(WINDBENCH_SCRIPTS_PATH.'export-csv/export-csv.js', 'file');
+	
+	
+	//load and preprocess results
+	$rating = windbench_file_load_rating($title);
+	$json_res_out = json_encode($rating);
+	//windbench_debug_print($rating);
+	
+
+		
+	//send data to js
+	$output = '
+	<script type="text/javascript">
+       var windbench_str_pass_res = \''.$json_res_out.'\';
+    </script>';
+    
+    
+    
+    $output .= '
+ <br>';
+ 	$output .= _make_table($rating);
+ 	//plot results
+ 	$output .= '
+  <br>
+  <div style="display: inline-block;  height:70px ;vertical-align: top;">
+  <label>Y axis</label>
+  <br>
+  <select id="y_axis_res">
+   <option value="0" selected="selected">';
+    $output .= "{$rating[1][0][1][0]}{$rating[1][0][1][1]}</option>";
+    for($i=2; $i<count($rating[1][0]); $i++){
+		$index = $i-1;
+		$output .= "<option value={$index}>{$rating[1][0][$i][0]}{$rating[1][0][$i][1]}</option>";
+	}
+    $output .= '
+  </select>
+ </div>
+ <div style="display: inline-block;  height:70px ;vertical-align: top;">
+  <label>Normalise</label>
+  <br>
+  <input type="checkbox" id="normalise_res">
+ </div>
+ <div id="container_res" style="height: 600px; margin: auto; min-width: 800px; max-width: 930px"></div>';
+
+	return $output;
+}
+
+function _highcharts_plot_page(){
+	
+	$title = 'Askervein_Neutral';
+	$params = drupal_get_query_parameters();
+	if (! isset($params["profile"])) $params["profile"] = "default";
+	
+	//clenup the profile parameter, just in case someone tries accessing what he shouldn't
+	$params["profile"] = preg_replace('/[^A-Za-z0-9\-_]/','',$params["profile"]);
+	$file_name = WINDBENCH_OFFLINE_PATH."{$title}_{$params["profile"]}.json";
+	//make sure that the file exists
+	if(is_readable($file_name)){
+		$string = file_get_contents($file_name);
+	}
+	else return "File not found".$file_name;
+	
+	drupal_add_js(WINDBENCH_SCRIPTS_PATH.'highcharts.js', 'file');
+	drupal_add_js(WINDBENCH_SCRIPTS_PATH.'highcharts-more.js', 'file');
+	drupal_add_js(WINDBENCH_SCRIPTS_PATH.'modules/exporting.js', 'file');
+	//drupal_add_js('scripts/modules/drilldown.js', 'file');
+	drupal_add_js(WINDBENCH_SCRIPTS_PATH.'horizontal.js', 'file');
+	drupal_add_js(WINDBENCH_SCRIPTS_PATH.'export-csv/export-csv.js', 'file');
+	
+	$json_in = json_decode($string, true);
+	if ($json_in == null){
+		windbench_debug("ERROR: failed decoding json file for plots");
+		return "";
+	}
+	$json_out = json_encode($json_in);
+	
+
+	
+
+
+	$profiles = windbench_file_read_profiles_list($title);
+	if($json_in[0][2][0] == "horizontal"){
+		$axis2_name = "Y";
+		$axiss1 =  $json_in[0][1][0];
+		$axiss2 =  $json_in[0][1][1];
+	}
+	else{
+		$axis2_name = "X";
+		$axiss1 =  $json_in[0][1][1];
+		$axiss2 =  $json_in[0][1][0];
+	}
+	if ($params["profile"] == "default") $params["profile"] = $json_in[0][0][0];
+		
+	//send data to js
+	$output = '
+	<script type="text/javascript">
+       var windbench_str_pass = \''.$json_out.'\';
+    </script>';
+    
+    
+    
+	//prepare dropdown manus and container for the chart
+ 	$output .= '
+  <div style="display: inline-block;  height:70px ;vertical-align: top;">
+  <label>'.$axis2_name.' axis</label>
+  <br>
+  <select id="x_axis">
+   <option value="0" selected="selected">';
+    $output .= "{$axiss2[0][0]}</option>";
+    
+    for($i=1; $i<count($axiss2); $i++){
+		$output .= "<option value={$i}>{$axiss2[$i][0]}</option>";
+	}
+    $output .= '
+  </select>
+ </div>
+ <div style="display: inline-block;  height:70px ;vertical-align: top;">
+  <label>Profile</label>
+  <br>
+  <select id="profile">';
+	
+	
+	foreach($profiles as $profile) {
+		$output .= '<option value="';
+		$output .= $profile;
+		$output .= '" ';
+		if($params["profile"] == $profile) $output .= 'selected="selected"' ;
+		$output .= ">";
+		$output .= $profile;
+		$output .= '</option>';
+	} 
+	
+	
+  
+    $output .='       
+  </select>
+ </div>
+ <br>
+ <div id="container" style="height: 600px; margin: auto; min-width: 800px; max-width: 930px"></div>';
+
+	return $output;
+}
+
+
+
+function _make_table($data,$index = 0){
+	$header = array_merge(array('Profile\User', ' ') ,$data[0]);
+
+	$rows = Array();
+	for($i = 0; $i<count($data[1]); $i++){
+		$row = Array();
+		//add column - profile name
+		array_push($row, "<b>{$data[1][$i][0]}</b>");
+		//add column - data labels
+		$data_type_html ="{$data[1][$i][1][0]} {$data[1][$i][1][1]}";
+		for($j = 2; $j<count($data[1][$i]); $j++){
+			$data_type_html .="<br>{$data[1][$i][$j][0]} {$data[1][$i][$j][1]}";
+		}
+		array_push($row,$data_type_html);
+		foreach($data[2][$i] as $result) {
+			$result[0] = round($result[0],2);
+			if($result[0]==-999) $result[0] = "-";
+			$result_html = $result[0];
+			for($j = 1; $j<count($result); $j++){
+				$result[$j] = round($result[$j],2);
+				if($result[$j]==-999) $result[$j] = "-";
+				$result_html .= '<br>'.$result[$j];
+			}
+			array_push($row,$result_html);
+		}
+		array_push($rows, $row);
+	}
+	
+	return theme('table', array('header' => $header ,
+                  	         'rows' => $rows ));
+}
+
+function windbench_debug($str){
+    if (DEBUG) drupal_set_message($str);
+}
+
+function windbench_debug_print($var, $str = null){
+    if(DEBUG){
+        //echo(print_r($var,FALSE));
+        //drupal_set_message(var_dump($var));
+        drupal_set_message($str.print_r($var,TRUE));
+    }
+}
+
+function _array_column(array $input, $columnKey, $indexKey = null) {
+        $result = array();
+   
+        if (null === $indexKey) {
+            if (null === $columnKey) {
+                // trigger_error('What are you doing? Use array_values() instead!', E_USER_NOTICE);
+                $result = array_values($input);
+            }
+            else {
+                foreach ($input as $row) {
+                    $result[] = $row[$columnKey];
+                }
+            }
+        }
+        else {
+            if (null === $columnKey) {
+                foreach ($input as $row) {
+                    $result[$row[$indexKey]] = $row;
+                }
+            }
+            else {
+                foreach ($input as $row) {
+                    $result[$row[$indexKey]] = $row[$columnKey];
+                }
+            }
+        }
+   
+        return $result;
+}
+

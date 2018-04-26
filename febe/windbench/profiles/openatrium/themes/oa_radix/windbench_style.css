@@ -1,0 +1,34 @@
+
+#oa-navbar .main-menu {
+    float: none !important;
+    text-align: center;
+    font-size: 14px;
+}
+
+#oa-navbar .main-menu li{
+    list-style-position:inside;
+    margin:0px 20px;
+
+}
+#oa-navbar .main-menu li a {
+    display: block;
+    width: 100%;
+    border-style: none solid;
+    border-width: 1px;
+
+}
+
+
+#oa-navbar .main-menu li a.active {
+    font-style: normal;
+    font-weight: bold;
+    border-width: 2px;
+}
+
+.navbar .oa-navigation .nav {
+    float: none;
+}
+
+.oa-navbar .panel-panel .pane-oa-navigation {
+    min-height: 40px;
+}
