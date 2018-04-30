@@ -2,7 +2,12 @@ version: '3'
 services:
    windbench-febe:
       container_name: windbench-febe
-      build: ./febe/
+      build: 
+         context: ./febe/
+         args:
+            - DB_USER=${DB_USER}
+            - DB_PASSWORD=${DB_PASSWORD}
+            - BASE_URL=${BASE_URL}
       image: cener/windbench-febe:1.0
       environment:
          SERVICE_80_TAGS: external
@@ -22,7 +27,11 @@ services:
          - "files:/var/www/html/sites/default/files"
    windbench-db:
       container_name: windbench-db
-      build: ./db/
+      build: 
+         context: ./db/
+         args:
+            - DB_USER=${DB_USER}
+            - DB_PASSWORD=${DB_PASSWORD}
       image: cener/windbench-db:1.0
       labels:
          backup: "yes"

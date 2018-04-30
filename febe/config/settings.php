@@ -121,8 +121,8 @@
   $databases['default']['default'] = array(
     'driver' => 'mysql',
     'database' => 'OADrupal7',
-    'username' => 'user_db',
-    'password' => 'pass_db',
+    'username' => 'DB_USER',
+    'password' => 'DB_PASSWORD',
     'host' => 'windbench-db',
     'prefix' => '',
     'collation' => 'utf8_general_ci',
@@ -272,7 +272,7 @@ $drupal_hash_salt = 'LQPdO1YUXPDbQwLDPOPNqw0Vg5pa3CqJruZ3s_GUxnc';
 
 # TODO should be defined in .env file
  #$base_url = 'http://windbench.net';  // NO trailing slash!
- $base_url = 'http://172.18.0.3'; 
+ $base_url = 'BASE_URL'; 
 
 /**
  * PHP settings:
