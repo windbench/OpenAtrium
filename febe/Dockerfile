@@ -4,7 +4,7 @@ LABEL maintainer="pgancarski@cener.com"
 LABEL maintainer="ezubillaga@cener.com"
 
 
-ENV OA_VERSION 7.x-2.628
+ENV OA_VERSION 7.x-2.631
 ARG DB_USER
 ARG DB_PASSWORD
 ARG BASE_URL
